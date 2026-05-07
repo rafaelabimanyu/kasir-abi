@@ -1,0 +1,194 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Custom colors */
+    --color-dark-900: #0f0f14;
+    --color-dark-800: #15151d;
+    --color-dark-700: #1c1c27;
+    --color-dark-600: #242433;
+    --color-dark-500: #2d2d3f;
+    --color-dark-400: #3a3a50;
+    --color-dark-300: #52527a;
+
+    --color-brand-50: #eef2ff;
+    --color-brand-100: #e0e7ff;
+    --color-brand-200: #c7d2fe;
+    --color-brand-300: #a5b4fc;
+    --color-brand-400: #818cf8;
+    --color-brand-500: #6366f1;
+    --color-brand-600: #4f46e5;
+    --color-brand-700: #4338ca;
+
+    --color-surface: #1a1a2e;
+    --color-surface-light: #22223a;
+    --color-surface-hover: #2a2a45;
+
+    /* Custom shadows */
+    --shadow-soft: 0 2px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+    --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+    --shadow-card: 0 4px 24px -4px rgba(0, 0, 0, 0.35);
+
+    /* Animations */
+    --animate-fade-in: fade-in 0.3s ease-out;
+    --animate-slide-in: slide-in 0.3s ease-out;
+    --animate-scale-in: scale-in 0.2s ease-out;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slide-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scale-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-dark-800);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-dark-400);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-dark-300);
+}
+
+/* Base body styles */
+body {
+    background-color: var(--color-dark-900);
+    color: #e2e8f0;
+    font-family: var(--font-sans);
+}
+
+/* Dropdown animation */
+.dropdown-enter {
+    animation: scale-in 0.15s ease-out;
+    transform-origin: top right;
+}
+
+/* Sidebar active indicator */
+.sidebar-link.active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05));
+    border-left: 3px solid var(--color-brand-500);
+}
+
+.sidebar-link.active .sidebar-icon {
+    color: var(--color-brand-400);
+}
+
+.sidebar-link.active .sidebar-text {
+    color: white;
+    font-weight: 600;
+}
+
+/* Glass effect */
+.glass {
+    background: rgba(26, 26, 46, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+/* Pulse dot animation for status */
+.pulse-dot {
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* POS: Cart item enter animation */
+@keyframes cart-item-in {
+    from { opacity: 0; transform: translateX(20px) scale(0.95); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.cart-item-enter {
+    animation: cart-item-in 0.25s ease-out;
+}
+
+/* POS: Product click feedback */
+@keyframes product-pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.92); }
+    100% { transform: scale(1); }
+}
+
+.product-pop {
+    animation: product-pop 0.2s ease-out;
+}
+
+/* POS: Qty bump animation */
+@keyframes qty-bump {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); color: #818cf8; }
+    100% { transform: scale(1); }
+}
+
+.qty-bump {
+    animation: qty-bump 0.25s ease-out;
+}
+
+/* POS: Toast notification */
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(-12px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toast-out {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(-12px) scale(0.95); }
+}
+
+.toast-enter {
+    animation: toast-in 0.3s ease-out;
+}
+
+.toast-leave {
+    animation: toast-out 0.25s ease-in forwards;
+}
+
+/* POS: Success pulse ring */
+@keyframes success-ring {
+    0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(52, 211, 153, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
+.success-pulse {
+    animation: success-ring 0.6s ease-out;
+}
+
+/* POS: Number input styling */
+.payment-input::-webkit-inner-spin-button,
+.payment-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.payment-input[type=number] {
+    -moz-appearance: textfield;
+}
