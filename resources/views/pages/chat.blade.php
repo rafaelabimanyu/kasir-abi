@@ -140,21 +140,31 @@ document.addEventListener('alpine:init', () => {
         },
 
         initEmojiPicker() {
-            const trigger = document.querySelector('#emoji-trigger');
+            const trigger = document.querySelector('#emoji-picker-button');
             if (trigger) {
                 try {
                     const picker = picmo.createPicker({
-                        theme: 'dark'
+                        theme: 'dark',
+                        showSearch: false,
+                        showVariants: false,
+                        showPreview: false
                     });
                     
                     const container = document.createElement('div');
                     container.classList.add('emoji-picker-popup');
-                    container.style.position = 'fixed';
+                    container.style.position = 'absolute';
                     container.style.zIndex = '1000';
                     container.style.display = 'none';
-                    document.body.appendChild(container);
+                    container.style.bottom = '100%';
+                    container.style.left = '0';
+                    container.style.marginBottom = '8px';
+                    
+                    // Mount to the form's relative parent instead of body
+                    const parent = trigger.closest('.relative') || trigger.parentElement;
+                    parent.style.position = 'relative';
+                    parent.appendChild(container);
                     container.appendChild(picker.domElement);
-
+                    
                     picker.addEventListener('emoji:select', event => {
                         this.newMessage += event.emoji;
                         this.$nextTick(() => {
@@ -165,18 +175,15 @@ document.addEventListener('alpine:init', () => {
                     
                     trigger.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        const rect = trigger.getBoundingClientRect();
-                        container.style.left = `${rect.left}px`;
-                        container.style.bottom = `${window.innerHeight - rect.top + 10}px`;
                         container.style.display = container.style.display === 'none' ? 'block' : 'none';
                     });
-
+                    
                     document.addEventListener('click', (e) => {
                         if (!container.contains(e.target) && e.target !== trigger) {
                             container.style.display = 'none';
                         }
                     });
-
+                    
                     console.log('[Chat] Emoji Picker Initialized');
                 } catch(e) {
                     console.error('[Chat] Failed to init Picmo:', e);
@@ -288,7 +295,7 @@ document.addEventListener('alpine:init', () => {
             const text = this.newMessage.trim();
             const attachment = formData.get('attachment');
             
-            if (!text && (!attachment || attachment.size === 0) || !this.selectedUserId || this.sending) return;
+            if (!text && (!attachment || (attachment instanceof File && attachment.size === 0)) || !this.selectedUserId || this.sending) return;
 
             this.newMessage = '';
             this.$refs.attachmentInput.value = '';
@@ -302,7 +309,8 @@ document.addEventListener('alpine:init', () => {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
                     body: formData
                 });
@@ -312,8 +320,9 @@ document.addEventListener('alpine:init', () => {
                     this.scrollToBottom();
                     this.$nextTick(() => lucide.createIcons());
                 } else {
+                    const err = await res.json();
                     this.newMessage = text;
-                    window.dispatchEvent(new CustomEvent('notify', { detail: { message: 'Gagal mengirim pesan.', type: 'error' } }));
+                    window.dispatchEvent(new CustomEvent('notify', { detail: { message: err.message || 'Gagal mengirim pesan.', type: 'error' } }));
                 }
             } catch(e) {
                 this.newMessage = text;
@@ -321,6 +330,48 @@ document.addEventListener('alpine:init', () => {
             } finally {
                 this.sending = false;
                 this.$nextTick(() => { if (this.$refs.messageInput) this.$refs.messageInput.focus(); });
+            }
+        },
+
+        async deleteMessage(msgId, type) {
+            const confirmMsg = type === 'all' 
+                ? 'Hapus pesan ini untuk semua orang?' 
+                : 'Hapus pesan ini untuk Anda saja?';
+            
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                const res = await fetch(`/chat/delete/${msgId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ type })
+                });
+
+                if (res.ok) {
+                    if (type === 'all') {
+                        const msg = this.messages.find(m => m.id === msgId);
+                        if (msg) {
+                            msg.is_deleted_for_all = true;
+                            msg.message = 'Pesan ini telah dihapus';
+                            msg.attachment_path = null;
+                            msg.attachment_type = null;
+                        }
+                    } else {
+                        this.messages = this.messages.filter(m => m.id !== msgId);
+                    }
+                    this.$nextTick(() => lucide.createIcons());
+                } else {
+                    const err = await res.json();
+                    window.dispatchEvent(new CustomEvent('notify', { detail: { message: err.message || 'Gagal menghapus pesan.', type: 'error' } }));
+                }
+            } catch(e) {
+                console.error('[Delete]', e);
+                window.dispatchEvent(new CustomEvent('notify', { detail: { message: 'Kesalahan jaringan.', type: 'error' } }));
             }
         },
 

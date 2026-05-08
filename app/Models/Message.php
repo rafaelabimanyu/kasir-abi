@@ -15,11 +15,15 @@ class Message extends Model
         'message',
         'attachment_path',
         'attachment_type',
-        'read_at'
+        'read_at',
+        'is_deleted_for_all',
+        'deleted_by'
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
+        'is_deleted_for_all' => 'boolean',
+        'deleted_by' => 'array',
     ];
 
     public function sender()

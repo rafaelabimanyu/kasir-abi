@@ -47,6 +47,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/chat/poll/{user}', [\App\Http\Controllers\MessageController::class, 'poll'])->name('chat.poll');
     Route::get('/chat/status', [\App\Http\Controllers\MessageController::class, 'getStatus'])->name('chat.status');
     Route::post('/chat/typing', [\App\Http\Controllers\MessageController::class, 'setTyping'])->name('chat.typing');
+    Route::post('/chat/delete/{message}', [\App\Http\Controllers\MessageController::class, 'deleteMessage'])->name('chat.delete');
 
     // Shortcuts
     Route::view('/shortcuts', 'pages.shortcuts')->name('shortcuts');

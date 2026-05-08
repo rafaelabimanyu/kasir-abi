@@ -15,7 +15,7 @@ class MessageController extends Controller
      */
     public function index()
     {
-        $users = User::where('id', '!=', (int) Auth::id(), 'and')
+        $users = User::where('id', '!=', Auth::id())
             ->select(['id', 'name', 'email', 'role', 'last_activity_at'])
             ->orderBy('name', 'asc')
             ->get(['*']);
@@ -34,22 +34,26 @@ class MessageController extends Controller
         $currentUserId = Auth::id();
 
         $messages = Message::where(function ($q) use ($currentUserId, $user_id) {
-                $q->where('sender_id', '=', (int) $currentUserId, 'and')
-                  ->where('receiver_id', '=', (int) $user_id, 'and');
+                $q->where('sender_id', $currentUserId)
+                  ->where('receiver_id', $user_id);
             })
             ->orWhere(function ($q) use ($currentUserId, $user_id) {
-                $q->where('sender_id', '=', (int) $user_id, 'and')
-                  ->where('receiver_id', '=', (int) $currentUserId, 'and');
+                $q->where('sender_id', $user_id)
+                  ->where('receiver_id', $currentUserId);
+            })
+            ->where(function ($q) use ($currentUserId) {
+                $q->whereNull('deleted_by')
+                  ->orWhereJsonDoesntContain('deleted_by', $currentUserId);
             })
             ->latest('created_at')
             ->limit(50)
-            ->get(['*'])
+            ->get()
             ->sortBy('created_at', SORT_REGULAR, false)
             ->values();
 
         // Mark messages from partner as read
-        Message::where('sender_id', '=', (int) $user_id, 'and')
-            ->where('receiver_id', '=', (int) $currentUserId, 'and')
+        Message::where('sender_id', $user_id)
+            ->where('receiver_id', $currentUserId)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
@@ -70,22 +74,26 @@ class MessageController extends Controller
 
         // Messages
         $messages = Message::where(function ($q) use ($currentUserId, $userId) {
-                $q->where('sender_id', '=', (int) $currentUserId, 'and')
-                  ->where('receiver_id', '=', (int) $userId, 'and');
+                $q->where('sender_id', $currentUserId)
+                  ->where('receiver_id', $userId);
             })
             ->orWhere(function ($q) use ($currentUserId, $userId) {
-                $q->where('sender_id', '=', (int) $userId, 'and')
-                  ->where('receiver_id', '=', (int) $currentUserId, 'and');
+                $q->where('sender_id', $userId)
+                  ->where('receiver_id', $currentUserId);
+            })
+            ->where(function ($q) use ($currentUserId) {
+                $q->whereNull('deleted_by')
+                  ->orWhereJsonDoesntContain('deleted_by', $currentUserId);
             })
             ->latest('created_at')
             ->limit(50)
-            ->get(['*'])
+            ->get()
             ->sortBy('created_at', SORT_REGULAR, false)
             ->values();
 
         // Mark as read
-        Message::where('sender_id', '=', (int) $userId, 'and')
-            ->where('receiver_id', '=', (int) $currentUserId, 'and')
+        Message::where('sender_id', $userId)
+            ->where('receiver_id', $currentUserId)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
@@ -93,16 +101,16 @@ class MessageController extends Controller
         $partnerTyping = (bool) Cache::get("typing_{$userId}_to_{$currentUserId}");
 
         // Unread counts per sender (for sidebar badges)
-        $unreadCounts = Message::where('receiver_id', '=', (int) $currentUserId, 'and')
+        $unreadCounts = Message::where('receiver_id', $currentUserId)
             ->whereNull('read_at')
             ->groupBy('sender_id')
             ->selectRaw('sender_id, COUNT(*) as count')
             ->pluck('count', 'sender_id');
 
         // Online statuses for all users
-        $onlineStatus = User::where('id', '!=', (int) $currentUserId, 'and')
+        $onlineStatus = User::where('id', '!=', $currentUserId)
             ->select(['id', 'last_activity_at'])
-            ->get(['*'])
+            ->get()
             ->mapWithKeys(fn ($u) => [
                 $u->id => $u->last_activity_at && $u->last_activity_at->gt($twoMinutesAgo)
             ]);
@@ -124,14 +132,14 @@ class MessageController extends Controller
         $currentUserId = Auth::id();
         $twoMinutesAgo = now()->subMinutes(2);
 
-        $onlineStatus = User::where('id', '!=', (int) $currentUserId, 'and')
+        $onlineStatus = User::where('id', '!=', $currentUserId)
             ->select(['id', 'last_activity_at'])
-            ->get(['*'])
+            ->get()
             ->mapWithKeys(fn ($u) => [
                 $u->id => $u->last_activity_at && $u->last_activity_at->gt($twoMinutesAgo)
             ]);
 
-        $unreadCounts = Message::where('receiver_id', '=', (int) $currentUserId, 'and')
+        $unreadCounts = Message::where('receiver_id', $currentUserId)
             ->whereNull('read_at')
             ->groupBy('sender_id')
             ->selectRaw('sender_id, COUNT(*) as count')
@@ -209,6 +217,44 @@ class MessageController extends Controller
             'attachment_type' => $attachmentType,
         ]);
 
-        return response()->json($message, 201, [], 0);
+        return response()->json($message, 201);
+    }
+
+    /**
+     * Hapus pesan.
+     */
+    public function deleteMessage(Request $request, Message $message)
+    {
+        $currentUserId = Auth::id();
+        
+        // Pastikan user adalah pengirim atau penerima
+        if ($message->sender_id !== $currentUserId && $message->receiver_id !== $currentUserId) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $type = $request->input('type'); // 'me' atau 'all'
+
+        if ($type === 'all') {
+            // Hanya pengirim yang bisa hapus untuk semua
+            if ($message->sender_id !== $currentUserId) {
+                return response()->json(['message' => 'Hanya pengirim yang bisa menghapus pesan untuk semua orang.'], 403);
+            }
+            
+            $message->update([
+                'is_deleted_for_all' => true,
+                'message' => 'Pesan ini telah dihapus',
+                'attachment_path' => null,
+                'attachment_type' => null
+            ]);
+        } else {
+            // Hapus untuk saya
+            $deletedBy = $message->deleted_by ?? [];
+            if (!in_array($currentUserId, $deletedBy)) {
+                $deletedBy[] = $currentUserId;
+                $message->update(['deleted_by' => $deletedBy]);
+            }
+        }
+
+        return response()->json(['ok' => true]);
     }
 }

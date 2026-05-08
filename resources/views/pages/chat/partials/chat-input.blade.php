@@ -30,7 +30,7 @@
             <input type="file" name="attachment" x-ref="attachmentInput" @change="handleFileSelect" class="hidden" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx">
             
             {{-- Tombol Emoji --}}
-            <button id="emoji-trigger" type="button" class="w-10 h-10 flex items-center justify-center rounded-xl bg-dark-700 border border-dark-600 text-slate-400 hover:text-white hover:bg-dark-600 transition-all" title="Emoji">
+            <button id="emoji-picker-button" type="button" class="w-10 h-10 flex items-center justify-center rounded-xl bg-dark-700 border border-dark-600 text-slate-400 hover:text-white hover:bg-dark-600 transition-all" title="Emoji">
                 <i data-lucide="smile" class="w-5 h-5"></i>
             </button>
         </div>
