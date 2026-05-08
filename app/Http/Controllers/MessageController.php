@@ -15,7 +15,7 @@ class MessageController extends Controller
      */
     public function index()
     {
-        $users = User::where('id', '!=', Auth::id())
+        $users = User::where('id', '!=', (int) Auth::id(), 'and')
             ->select('id', 'name', 'email', 'role', 'last_activity_at')
             ->orderBy('name')
             ->get();
@@ -27,17 +27,17 @@ class MessageController extends Controller
      * Ambil 50 pesan terakhir antara dua user + mark as read.
      * Security: hanya bisa akses percakapan sendiri.
      */
-    public function fetchMessages($user_id)
+    public function fetchMessages(int $user_id)
     {
         User::findOrFail($user_id);
 
         $currentUserId = Auth::id();
 
         $messages = Message::where(function ($q) use ($currentUserId, $user_id) {
-                $q->where('sender_id', $currentUserId)->where('receiver_id', $user_id);
+                $q->where('sender_id', '=', (int) $currentUserId, 'and')->where('receiver_id', '=', (int) $user_id, 'and');
             })
             ->orWhere(function ($q) use ($currentUserId, $user_id) {
-                $q->where('sender_id', $user_id)->where('receiver_id', $currentUserId);
+                $q->where('sender_id', '=', (int) $user_id, 'and')->where('receiver_id', '=', (int) $currentUserId, 'and');
             })
             ->latest()
             ->limit(50)
@@ -46,8 +46,8 @@ class MessageController extends Controller
             ->values();
 
         // Mark messages from partner as read
-        Message::where('sender_id', $user_id)
-            ->where('receiver_id', $currentUserId)
+        Message::where('sender_id', '=', (int) $user_id, 'and')
+            ->where('receiver_id', '=', (int) $currentUserId, 'and')
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
@@ -59,7 +59,7 @@ class MessageController extends Controller
      * Returns messages + typing status + unread counts + online statuses.
      * Called every 3 seconds from the active chat.
      */
-    public function poll($userId)
+    public function poll(int $userId)
     {
         User::findOrFail($userId);
 
@@ -68,10 +68,10 @@ class MessageController extends Controller
 
         // Messages
         $messages = Message::where(function ($q) use ($currentUserId, $userId) {
-                $q->where('sender_id', $currentUserId)->where('receiver_id', $userId);
+                $q->where('sender_id', '=', (int) $currentUserId, 'and')->where('receiver_id', '=', (int) $userId, 'and');
             })
             ->orWhere(function ($q) use ($currentUserId, $userId) {
-                $q->where('sender_id', $userId)->where('receiver_id', $currentUserId);
+                $q->where('sender_id', '=', (int) $userId, 'and')->where('receiver_id', '=', (int) $currentUserId, 'and');
             })
             ->latest()
             ->limit(50)
@@ -80,8 +80,8 @@ class MessageController extends Controller
             ->values();
 
         // Mark as read
-        Message::where('sender_id', $userId)
-            ->where('receiver_id', $currentUserId)
+        Message::where('sender_id', '=', (int) $userId, 'and')
+            ->where('receiver_id', '=', (int) $currentUserId, 'and')
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
@@ -89,14 +89,14 @@ class MessageController extends Controller
         $partnerTyping = (bool) Cache::get("typing_{$userId}_to_{$currentUserId}");
 
         // Unread counts per sender (for sidebar badges)
-        $unreadCounts = Message::where('receiver_id', $currentUserId)
+        $unreadCounts = Message::where('receiver_id', '=', (int) $currentUserId, 'and')
             ->whereNull('read_at')
             ->groupBy('sender_id')
             ->selectRaw('sender_id, COUNT(*) as count')
             ->pluck('count', 'sender_id');
 
         // Online statuses for all users
-        $onlineStatus = User::where('id', '!=', $currentUserId)
+        $onlineStatus = User::where('id', '!=', (int) $currentUserId, 'and')
             ->select('id', 'last_activity_at')
             ->get()
             ->mapWithKeys(fn ($u) => [
@@ -120,14 +120,14 @@ class MessageController extends Controller
         $currentUserId = Auth::id();
         $twoMinutesAgo = now()->subMinutes(2);
 
-        $onlineStatus = User::where('id', '!=', $currentUserId)
+        $onlineStatus = User::where('id', '!=', (int) $currentUserId, 'and')
             ->select('id', 'last_activity_at')
             ->get()
             ->mapWithKeys(fn ($u) => [
                 $u->id => $u->last_activity_at && $u->last_activity_at->gt($twoMinutesAgo)
             ]);
 
-        $unreadCounts = Message::where('receiver_id', $currentUserId)
+        $unreadCounts = Message::where('receiver_id', '=', (int) $currentUserId, 'and')
             ->whereNull('read_at')
             ->groupBy('sender_id')
             ->selectRaw('sender_id, COUNT(*) as count')
@@ -192,7 +192,9 @@ class MessageController extends Controller
                 $attachmentType = 'file';
             }
 
-            $attachmentPath = $file->store('chat_attachments', 'public');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('attachments'), $filename);
+            $attachmentPath = 'attachments/' . $filename;
         }
 
         $message = Message::create([

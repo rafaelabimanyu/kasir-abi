@@ -1,6 +1,6 @@
 @extends('layouts.master')
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js"></script>
+<script src="https://unpkg.com/picmo@latest/dist/umd/index.js"></script>
 @endpush
 @section('title', 'Pesan Internal')
 
@@ -162,13 +162,13 @@
                                         <template x-if="msg.attachment_path">
                                             <div class="mb-2 overflow-hidden rounded-xl bg-dark-700/50 border border-dark-500/30">
                                                 <template x-if="msg.attachment_type === 'image'">
-                                                    <img :src="'/storage/' + msg.attachment_path" class="max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity min-w-[150px]" @click="window.open('/storage/' + msg.attachment_path)">
+                                                    <img :src="'/' + msg.attachment_path" class="max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity min-w-[150px]" @click="window.open('/' + msg.attachment_path)">
                                                 </template>
                                                 <template x-if="msg.attachment_type === 'video'">
-                                                    <video :src="'/storage/' + msg.attachment_path" controls class="max-w-full h-auto min-w-[200px]"></video>
+                                                    <video :src="'/' + msg.attachment_path" controls class="max-w-full h-auto min-w-[200px]"></video>
                                                 </template>
                                                 <template x-if="msg.attachment_type === 'file'">
-                                                    <a :href="'/storage/' + msg.attachment_path" target="_blank" class="flex items-center gap-3 p-3 hover:bg-dark-500 transition-colors">
+                                                    <a :href="'/' + msg.attachment_path" target="_blank" class="flex items-center gap-3 p-3 hover:bg-dark-500 transition-colors">
                                                         <div class="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center">
                                                             <i data-lucide="file-text" class="w-5 h-5 text-brand-400"></i>
                                                         </div>
@@ -197,13 +197,13 @@
                                         <template x-if="msg.attachment_path">
                                             <div class="mb-2 overflow-hidden rounded-xl bg-black/10 border border-white/10">
                                                 <template x-if="msg.attachment_type === 'image'">
-                                                    <img :src="'/storage/' + msg.attachment_path" class="max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity min-w-[150px]" @click="window.open('/storage/' + msg.attachment_path)">
+                                                    <img :src="'/' + msg.attachment_path" class="max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity min-w-[150px]" @click="window.open('/' + msg.attachment_path)">
                                                 </template>
                                                 <template x-if="msg.attachment_type === 'video'">
-                                                    <video :src="'/storage/' + msg.attachment_path" controls class="max-w-full h-auto min-w-[200px]"></video>
+                                                    <video :src="'/' + msg.attachment_path" controls class="max-w-full h-auto min-w-[200px]"></video>
                                                 </template>
                                                 <template x-if="msg.attachment_type === 'file'">
-                                                    <a :href="'/storage/' + msg.attachment_path" target="_blank" class="flex items-center gap-3 p-3 hover:bg-white/10 transition-colors">
+                                                    <a :href="'/' + msg.attachment_path" target="_blank" class="flex items-center gap-3 p-3 hover:bg-white/10 transition-colors">
                                                         <div class="w-10 h-10 rounded-lg bg-black/20 flex items-center justify-center">
                                                             <i data-lucide="file-text" class="w-5 h-5 text-white"></i>
                                                         </div>
@@ -263,7 +263,7 @@
                 </div>
             </template>
 
-            <form @submit.prevent="sendMessage()" class="flex items-end gap-2">
+            <form @submit.prevent="sendMessage($event)" class="flex items-end gap-2" enctype="multipart/form-data">
                 <div class="flex items-center gap-1 shrink-0">
                     {{-- Attachment Button --}}
                     <button @click="$refs.attachmentInput.click()" type="button" class="w-10 h-10 flex items-center justify-center rounded-xl bg-dark-700 border border-dark-600 text-slate-400 hover:text-white hover:bg-dark-600 transition-all" title="Lampiran">
@@ -344,6 +344,10 @@
 .shadow-glow-sm {
     box-shadow: 0 0 15px -3px rgba(79, 70, 229, 0.4);
 }
+
+.emoji-picker {
+    z-index: 1000 !important;
+}
 </style>
 <script>
 document.addEventListener('alpine:init', () => {
@@ -390,21 +394,33 @@ document.addEventListener('alpine:init', () => {
         },
 
         initEmojiPicker() {
-            const picker = new EmojiButton({
-                theme: 'dark',
-                autoHide: false,
-                position: 'top-start'
-            });
             const trigger = document.querySelector('#emoji-trigger');
             if (trigger) {
-                picker.on('emoji', selection => {
-                    this.newMessage += selection.emoji;
-                    this.$nextTick(() => {
-                        this.autoResize(this.$refs.messageInput);
-                        this.$refs.messageInput.focus();
+                try {
+                    const picker = picmo.createPicker({
+                        rootElement: document.body,
+                        theme: 'dark'
                     });
-                });
-                trigger.addEventListener('click', () => picker.togglePicker(trigger));
+                    picker.addEventListener('emoji:select', event => {
+                        this.newMessage += event.emoji;
+                        this.$nextTick(() => {
+                            this.autoResize(this.$refs.messageInput);
+                            this.$refs.messageInput.focus();
+                        });
+                    });
+                    trigger.addEventListener('click', () => {
+                        const rect = trigger.getBoundingClientRect();
+                        picker.style.position = 'fixed';
+                        picker.style.left = `${rect.left}px`;
+                        picker.style.bottom = `${window.innerHeight - rect.top + 10}px`;
+                        picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+                    });
+                    // Hide initially
+                    picker.style.display = 'none';
+                    console.log('[Chat] Emoji Picker Initialized');
+                } catch(e) {
+                    console.error('[Chat] Failed to init Picmo:', e);
+                }
             }
         },
 
@@ -504,16 +520,16 @@ document.addEventListener('alpine:init', () => {
             } catch(e) { console.error('[Status]', e); }
         },
 
-        async sendMessage() {
-            const text = this.newMessage.trim();
-            const file = this.$refs.attachmentInput.files[0];
+        async sendMessage(event) {
+            const form = event.target;
+            const formData = new FormData(form);
             
-            if (!text && !file || !this.selectedUserId || this.sending) return;
-            
-            const formData = new FormData();
             formData.append('receiver_id', this.selectedUserId);
-            if (text) formData.append('message', text);
-            if (file) formData.append('attachment', file);
+            
+            const text = this.newMessage.trim();
+            const attachment = formData.get('attachment');
+            
+            if (!text && (!attachment || attachment.size === 0) || !this.selectedUserId || this.sending) return;
 
             this.newMessage = '';
             this.$refs.attachmentInput.value = '';
