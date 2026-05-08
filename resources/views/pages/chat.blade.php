@@ -141,7 +141,9 @@ document.addEventListener('alpine:init', () => {
 
         initEmojiPicker() {
             const trigger = document.querySelector('#emoji-picker-button');
-            if (trigger) {
+            const container = document.querySelector('#emoji-picker-container');
+            
+            if (trigger && container) {
                 try {
                     const picker = picmo.createPicker({
                         theme: 'dark',
@@ -150,19 +152,6 @@ document.addEventListener('alpine:init', () => {
                         showPreview: false
                     });
                     
-                    const container = document.createElement('div');
-                    container.classList.add('emoji-picker-popup');
-                    container.style.position = 'absolute';
-                    container.style.zIndex = '1000';
-                    container.style.display = 'none';
-                    container.style.bottom = '100%';
-                    container.style.left = '0';
-                    container.style.marginBottom = '8px';
-                    
-                    // Mount to the form's relative parent instead of body
-                    const parent = trigger.closest('.relative') || trigger.parentElement;
-                    parent.style.position = 'relative';
-                    parent.appendChild(container);
                     container.appendChild(picker.domElement);
                     
                     picker.addEventListener('emoji:select', event => {
@@ -176,10 +165,21 @@ document.addEventListener('alpine:init', () => {
                     trigger.addEventListener('click', (e) => {
                         e.stopPropagation();
                         container.style.display = container.style.display === 'none' ? 'block' : 'none';
+                        if (container.style.display === 'block') {
+                            this.$nextTick(() => {
+                                // Ensure picker is visible within window
+                                const rect = container.getBoundingClientRect();
+                                if (rect.top < 0) {
+                                    container.style.bottom = 'auto';
+                                    container.style.top = '100%';
+                                    container.style.marginTop = '8px';
+                                }
+                            });
+                        }
                     });
                     
                     document.addEventListener('click', (e) => {
-                        if (!container.contains(e.target) && e.target !== trigger) {
+                        if (!container.contains(e.target) && !trigger.contains(e.target)) {
                             container.style.display = 'none';
                         }
                     });
@@ -201,18 +201,17 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
 
-            if (file.type.startsWith('image/')) {
+            const type = file.type.startsWith('image/') ? 'image' : (file.type.startsWith('video/') ? 'video' : 'file');
+            
+            if (type === 'image') {
                 const reader = new FileReader();
                 reader.onload = (e) => { 
                     this.selectedFilePreview = { type: 'image', url: e.target.result, name: file.name }; 
                     this.$nextTick(() => lucide.createIcons());
                 };
                 reader.readAsDataURL(file);
-            } else if (file.type.startsWith('video/')) {
-                this.selectedFilePreview = { type: 'video', name: file.name };
-                this.$nextTick(() => lucide.createIcons());
             } else {
-                this.selectedFilePreview = { type: 'file', name: file.name };
+                this.selectedFilePreview = { type: type, name: file.name };
                 this.$nextTick(() => lucide.createIcons());
             }
         },
@@ -234,8 +233,12 @@ document.addEventListener('alpine:init', () => {
             this.partnerTyping = false;
             this.selectedFilePreview = null;
             this.stopPolling();
-            this.doPoll(true);
-            this.pollInterval = setInterval(() => this.doPoll(false), 3000);
+            
+            // Initial fetch
+            this.doPoll(true).then(() => {
+                this.pollInterval = setInterval(() => this.doPoll(false), 3000);
+            });
+            
             this.$nextTick(() => { if (this.$refs.messageInput) this.$refs.messageInput.focus(); });
         },
 
@@ -247,14 +250,19 @@ document.addEventListener('alpine:init', () => {
                 });
                 if (!res.ok) return;
                 const data = await res.json();
-                const prevLen = this.messages.length;
+                const prevMsgCount = this.messages.length;
+                const lastMsgId = prevMsgCount > 0 ? this.messages[prevMsgCount - 1].id : null;
+                const newLastMsgId = data.messages.length > 0 ? data.messages[data.messages.length - 1].id : null;
+
                 this.messages = data.messages;
                 this.partnerTyping = data.partner_typing;
                 this.onlineStatus = Object.assign({}, this.onlineStatus, data.online_status);
+                
                 const counts = Object.assign({}, data.unread_counts);
                 counts[this.selectedUserId] = 0;
                 this.unreadCounts = counts;
-                if (initial || data.messages.length > prevLen) {
+
+                if (initial || (newLastMsgId !== lastMsgId)) {
                     this.scrollToBottom();
                     this.$nextTick(() => lucide.createIcons());
                 }
@@ -269,6 +277,7 @@ document.addEventListener('alpine:init', () => {
                 const data = await res.json();
                 this.onlineStatus = Object.assign({}, this.onlineStatus, data.online_status);
                 const newCounts = data.unread_counts;
+                
                 Object.entries(newCounts).forEach(([senderId, count]) => {
                     const id = parseInt(senderId);
                     const prev = this.unreadCounts[id] || 0;
@@ -277,6 +286,7 @@ document.addEventListener('alpine:init', () => {
                         if (user) this.showChatToast(id, user.name, 'Pesan baru dari ' + user.name);
                     }
                 });
+
                 if (!this.selectedUserId) {
                     this.unreadCounts = newCounts;
                 } else {
@@ -288,22 +298,29 @@ document.addEventListener('alpine:init', () => {
         },
 
         async sendMessage(event) {
-            const form = event.target;
-            const formData = new FormData(form);
-            formData.append('receiver_id', this.selectedUserId);
-            
-            const text = this.newMessage.trim();
-            const attachment = formData.get('attachment');
-            
-            if (!text && (!attachment || (attachment instanceof File && attachment.size === 0)) || !this.selectedUserId || this.sending) return;
+            if (!this.selectedUserId || this.sending) return;
 
-            this.newMessage = '';
-            this.$refs.attachmentInput.value = '';
-            this.selectedFilePreview = null;
+            const text = this.newMessage.trim();
+            const attachment = this.$refs.attachmentInput.files[0];
+            
+            if (!text && !attachment) return;
+
             this.sending = true;
             
-            this.$nextTick(() => { if (this.$refs.messageInput) this.$refs.messageInput.style.height = 'auto'; });
+            const formData = new FormData();
+            formData.append('receiver_id', this.selectedUserId);
+            formData.append('message', text);
+            if (attachment) {
+                formData.append('attachment', attachment);
+            }
             
+            // UI Feedback: Clear input early but keep values in local vars
+            const originalMessage = this.newMessage;
+            this.newMessage = '';
+            this.selectedFilePreview = null;
+            this.$refs.attachmentInput.value = '';
+            if (this.$refs.messageInput) this.$refs.messageInput.style.height = 'auto';
+
             try {
                 const res = await fetch('/chat/send', {
                     method: 'POST',
@@ -314,6 +331,7 @@ document.addEventListener('alpine:init', () => {
                     },
                     body: formData
                 });
+
                 if (res.ok) {
                     const msg = await res.json();
                     this.messages.push(msg);
@@ -321,11 +339,11 @@ document.addEventListener('alpine:init', () => {
                     this.$nextTick(() => lucide.createIcons());
                 } else {
                     const err = await res.json();
-                    this.newMessage = text;
+                    this.newMessage = originalMessage; // Restore if failed
                     window.dispatchEvent(new CustomEvent('notify', { detail: { message: err.message || 'Gagal mengirim pesan.', type: 'error' } }));
                 }
             } catch(e) {
-                this.newMessage = text;
+                this.newMessage = originalMessage;
                 window.dispatchEvent(new CustomEvent('notify', { detail: { message: 'Kesalahan jaringan.', type: 'error' } }));
             } finally {
                 this.sending = false;
@@ -397,7 +415,7 @@ document.addEventListener('alpine:init', () => {
                     this.$nextTick(() => this.autoResize(this.$refs.messageInput));
                 } else {
                     e.preventDefault();
-                    this.sendMessage({ target: e.target.closest('form') });
+                    this.sendMessage();
                 }
             }
         },
@@ -415,7 +433,12 @@ document.addEventListener('alpine:init', () => {
         scrollToBottom() {
             this.$nextTick(() => {
                 const el = document.getElementById('messages-container');
-                if (el) el.scrollTop = el.scrollHeight;
+                if (el) {
+                    el.scrollTo({
+                        top: el.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                }
             });
         },
 
