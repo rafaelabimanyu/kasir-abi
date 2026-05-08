@@ -1,4 +1,7 @@
 @extends('layouts.master')
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js"></script>
+@endpush
 @section('title', 'Pesan Internal')
 
 @section('page-header')
@@ -153,11 +156,34 @@
                                     </div>
                                 </template>
                                 <template x-if="!shouldShowAvatar(index)"><div class="w-7 shrink-0"></div></template>
-                                <div class="max-w-[72%]">
-                                    <div class="px-3.5 py-2 rounded-2xl rounded-bl-sm bg-dark-600 border border-dark-500/60 text-slate-200">
-                                        <p class="text-sm whitespace-pre-wrap break-words leading-relaxed" x-text="msg.message"></p>
+                                <div class="max-w-[75%]">
+                                    <div class="px-3 py-2 rounded-2xl rounded-bl-sm bg-dark-600 border border-dark-500/50 text-slate-200 shadow-sm">
+                                        {{-- Attachment Preview (Left) --}}
+                                        <template x-if="msg.attachment_path">
+                                            <div class="mb-2 overflow-hidden rounded-xl bg-dark-700/50 border border-dark-500/30">
+                                                <template x-if="msg.attachment_type === 'image'">
+                                                    <img :src="'/storage/' + msg.attachment_path" class="max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity min-w-[150px]" @click="window.open('/storage/' + msg.attachment_path)">
+                                                </template>
+                                                <template x-if="msg.attachment_type === 'video'">
+                                                    <video :src="'/storage/' + msg.attachment_path" controls class="max-w-full h-auto min-w-[200px]"></video>
+                                                </template>
+                                                <template x-if="msg.attachment_type === 'file'">
+                                                    <a :href="'/storage/' + msg.attachment_path" target="_blank" class="flex items-center gap-3 p-3 hover:bg-dark-500 transition-colors">
+                                                        <div class="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center">
+                                                            <i data-lucide="file-text" class="w-5 h-5 text-brand-400"></i>
+                                                        </div>
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-xs font-medium text-white truncate" x-text="msg.attachment_path.split('/').pop()"></p>
+                                                            <p class="text-[10px] text-slate-500">Dokumen</p>
+                                                        </div>
+                                                        <i data-lucide="download" class="w-4 h-4 text-slate-600"></i>
+                                                    </a>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <p x-show="msg.message" class="text-[13.5px] whitespace-pre-wrap break-words leading-relaxed font-jakarta" x-text="msg.message"></p>
                                     </div>
-                                    <p class="text-[10px] text-slate-600 mt-0.5 ml-1" x-text="formatTime(msg.created_at)"></p>
+                                    <p class="text-[10px] text-slate-600 mt-1 ml-1" x-text="formatTime(msg.created_at)"></p>
                                 </div>
                             </div>
                         </template>
@@ -165,23 +191,46 @@
                         {{-- Bubble kanan (saya) --}}
                         <template x-if="msg.sender_id === {{ auth()->id() }}">
                             <div class="flex items-end gap-2 mb-1 justify-end">
-                                <div class="max-w-[72%]">
-                                    <div class="px-3.5 py-2 rounded-2xl rounded-br-sm bg-brand-600 border border-brand-500/60 text-white">
-                                        <p class="text-sm whitespace-pre-wrap break-words leading-relaxed" x-text="msg.message"></p>
+                                <div class="max-w-[75%]">
+                                    <div class="px-3 py-2 rounded-2xl rounded-br-sm bg-brand-600 border border-brand-500/50 text-white shadow-sm shadow-brand-500/10">
+                                        {{-- Attachment Preview (Right) --}}
+                                        <template x-if="msg.attachment_path">
+                                            <div class="mb-2 overflow-hidden rounded-xl bg-black/10 border border-white/10">
+                                                <template x-if="msg.attachment_type === 'image'">
+                                                    <img :src="'/storage/' + msg.attachment_path" class="max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity min-w-[150px]" @click="window.open('/storage/' + msg.attachment_path)">
+                                                </template>
+                                                <template x-if="msg.attachment_type === 'video'">
+                                                    <video :src="'/storage/' + msg.attachment_path" controls class="max-w-full h-auto min-w-[200px]"></video>
+                                                </template>
+                                                <template x-if="msg.attachment_type === 'file'">
+                                                    <a :href="'/storage/' + msg.attachment_path" target="_blank" class="flex items-center gap-3 p-3 hover:bg-white/10 transition-colors">
+                                                        <div class="w-10 h-10 rounded-lg bg-black/20 flex items-center justify-center">
+                                                            <i data-lucide="file-text" class="w-5 h-5 text-white"></i>
+                                                        </div>
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-xs font-medium text-white truncate" x-text="msg.attachment_path.split('/').pop()"></p>
+                                                            <p class="text-[10px] text-brand-200">Dokumen</p>
+                                                        </div>
+                                                        <i data-lucide="download" class="w-4 h-4 text-brand-200"></i>
+                                                    </a>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <p x-show="msg.message" class="text-[13.5px] whitespace-pre-wrap break-words leading-relaxed font-jakarta" x-text="msg.message"></p>
                                     </div>
-                                    <div class="flex items-center justify-end gap-1 mt-0.5 mr-0.5">
+                                    <div class="flex items-center justify-end gap-1 mt-1 mr-1">
                                         <p class="text-[10px] text-slate-600" x-text="formatTime(msg.created_at)"></p>
-                                        {{-- Read receipt: ✓✓ --}}
-                                        <template x-if="msg.read_at">
-                                            <svg class="w-3.5 h-3.5 text-brand-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                                <path d="M1.5 12.5l5 5L18 6"/><path d="M7 12.5l5 5L23 6" opacity=".6"/>
+                                        {{-- Read receipt status --}}
+                                        <span x-show="msg.read_at" class="text-brand-400">
+                                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                                <path d="M20 6L9 17l-5-5"/><path d="M16 6l-11 11-5-5" class="opacity-50"/>
                                             </svg>
-                                        </template>
-                                        <template x-if="!msg.read_at">
-                                            <svg class="w-3.5 h-3.5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                                <path d="M1.5 12.5l5 5L18 6"/><path d="M7 12.5l5 5L23 6" opacity=".6"/>
+                                        </span>
+                                        <span x-show="!msg.read_at" class="text-slate-600">
+                                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M20 6L9 17l-5-5"/>
                                             </svg>
-                                        </template>
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -193,23 +242,58 @@
 
         {{-- Input --}}
         <div x-show="selectedUserId" style="display:none;" class="p-3 bg-dark-800 border-t border-dark-600/50 shrink-0">
+            {{-- Selected File Preview --}}
+            <template x-if="selectedFilePreview">
+                <div class="mb-3 p-2.5 bg-dark-700 border border-brand-500/30 rounded-2xl flex items-center gap-3 animate-fade-in">
+                    <div class="w-12 h-12 rounded-xl bg-dark-600 overflow-hidden flex items-center justify-center shrink-0 border border-dark-500/50">
+                        <template x-if="selectedFilePreview.type === 'image'">
+                            <img :src="selectedFilePreview.url" class="w-full h-full object-cover">
+                        </template>
+                        <template x-if="selectedFilePreview.type !== 'image'">
+                            <i :data-lucide="selectedFilePreview.type === 'video' ? 'video' : 'file-text'" class="w-6 h-6 text-brand-400"></i>
+                        </template>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-semibold text-white truncate" x-text="selectedFilePreview.name"></p>
+                        <p class="text-[10px] text-slate-500 uppercase" x-text="selectedFilePreview.type"></p>
+                    </div>
+                    <button @click="selectedFilePreview = null; $refs.attachmentInput.value = ''" class="w-8 h-8 flex items-center justify-center rounded-full bg-dark-600 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </template>
+
             <form @submit.prevent="sendMessage()" class="flex items-end gap-2">
+                <div class="flex items-center gap-1 shrink-0">
+                    {{-- Attachment Button --}}
+                    <button @click="$refs.attachmentInput.click()" type="button" class="w-10 h-10 flex items-center justify-center rounded-xl bg-dark-700 border border-dark-600 text-slate-400 hover:text-white hover:bg-dark-600 transition-all" title="Lampiran">
+                        <i data-lucide="plus" class="w-5 h-5"></i>
+                    </button>
+                    <input type="file" x-ref="attachmentInput" @change="handleFileSelect" class="hidden" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx">
+                    
+                    {{-- Emoji Button --}}
+                    <button id="emoji-trigger" type="button" class="w-10 h-10 flex items-center justify-center rounded-xl bg-dark-700 border border-dark-600 text-slate-400 hover:text-white hover:bg-dark-600 transition-all" title="Emoji">
+                        <i data-lucide="smile" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
                 <textarea id="chat-message-input" x-model="newMessage" x-ref="messageInput"
                     @keydown="handleKeydown($event)"
                     @input="autoResize($event.target); notifyTyping()"
-                    placeholder="Ketik pesan... (Enter kirim · Shift+Enter baris baru)"
+                    placeholder="Ketik pesan..."
                     maxlength="1000" rows="1"
-                    class="flex-1 bg-dark-700 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all resize-none overflow-y-auto"
+                    class="flex-1 bg-dark-700 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all resize-none overflow-y-auto font-jakarta"
                     style="max-height:120px;min-height:42px;"></textarea>
-                <button type="submit" :disabled="!newMessage.trim() || sending"
+
+                <button type="submit" :disabled="(!newMessage.trim() && !selectedFilePreview) || sending"
                     class="w-10 h-10 flex items-center justify-center rounded-xl border transition-all shrink-0 focus:outline-none disabled:cursor-not-allowed"
-                    :class="newMessage.trim() && !sending ? 'bg-brand-600 hover:bg-brand-500 border-brand-500 text-white' : 'bg-dark-700 border-dark-600 text-slate-600'">
+                    :class="(newMessage.trim() || selectedFilePreview) && !sending ? 'bg-brand-600 hover:bg-brand-500 border-brand-500 text-white shadow-glow-sm' : 'bg-dark-700 border-dark-600 text-slate-600'">
                     <i x-show="!sending" data-lucide="send" class="w-4 h-4 ml-0.5"></i>
                     <i x-show="sending" data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
                 </button>
             </form>
             <div class="flex justify-between mt-1 px-0.5">
-                <p class="text-[10px] text-slate-700">Enter = kirim · Shift+Enter = baris baru</p>
+                <p class="text-[10px] text-slate-700 font-medium">Shift+Enter = baris baru</p>
                 <p class="text-[10px] tabular-nums" :class="newMessage.length > 900 ? 'text-amber-500' : 'text-slate-700'" x-text="newMessage.length + '/1000'"></p>
             </div>
         </div>
@@ -247,6 +331,19 @@
 .custom-scrollbar::-webkit-scrollbar-track{background:transparent}
 .custom-scrollbar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:10px}
 .custom-scrollbar::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.14)}
+
+.animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.shadow-glow-sm {
+    box-shadow: 0 0 15px -3px rgba(79, 70, 229, 0.4);
+}
 </style>
 <script>
 document.addEventListener('alpine:init', () => {
@@ -258,6 +355,7 @@ document.addEventListener('alpine:init', () => {
         selectedUserName: '',
         messages: [],
         newMessage: '',
+        selectedFilePreview: null,
         loading: false,
         sending: false,
         partnerTyping: false,
@@ -271,7 +369,6 @@ document.addEventListener('alpine:init', () => {
 
         init() {
             this.filteredUsers = this.allUsers;
-            // Init online status & unread from server data
             this.allUsers.forEach(u => {
                 this.onlineStatus[u.id] = u.last_activity_at
                     ? (new Date() - new Date(u.last_activity_at)) < 120000
@@ -279,8 +376,62 @@ document.addEventListener('alpine:init', () => {
             });
             this.fetchStatus();
             this.bgInterval = setInterval(() => this.fetchStatus(), 10000);
-            this.$cleanup(() => { this.stopPolling(); clearInterval(this.bgInterval); });
-            this.$nextTick(() => lucide.createIcons());
+            
+            // Initialize Emoji Picker
+            this.$nextTick(() => {
+                this.initEmojiPicker();
+                lucide.createIcons();
+            });
+
+            this.$cleanup(() => { 
+                this.stopPolling(); 
+                clearInterval(this.bgInterval); 
+            });
+        },
+
+        initEmojiPicker() {
+            const picker = new EmojiButton({
+                theme: 'dark',
+                autoHide: false,
+                position: 'top-start'
+            });
+            const trigger = document.querySelector('#emoji-trigger');
+            if (trigger) {
+                picker.on('emoji', selection => {
+                    this.newMessage += selection.emoji;
+                    this.$nextTick(() => {
+                        this.autoResize(this.$refs.messageInput);
+                        this.$refs.messageInput.focus();
+                    });
+                });
+                trigger.addEventListener('click', () => picker.togglePicker(trigger));
+            }
+        },
+
+        handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (file.size > 20 * 1024 * 1024) {
+                window.dispatchEvent(new CustomEvent('notify', { detail: { message: 'File terlalu besar (max 20MB).', type: 'error' } }));
+                e.target.value = '';
+                return;
+            }
+
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => { 
+                    this.selectedFilePreview = { type: 'image', url: e.target.result, name: file.name }; 
+                    this.$nextTick(() => lucide.createIcons());
+                };
+                reader.readAsDataURL(file);
+            } else if (file.type.startsWith('video/')) {
+                this.selectedFilePreview = { type: 'video', name: file.name };
+                this.$nextTick(() => lucide.createIcons());
+            } else {
+                this.selectedFilePreview = { type: 'file', name: file.name };
+                this.$nextTick(() => lucide.createIcons());
+            }
         },
 
         filterUsers() {
@@ -298,6 +449,7 @@ document.addEventListener('alpine:init', () => {
             this.messages = [];
             this.loading = true;
             this.partnerTyping = false;
+            this.selectedFilePreview = null;
             this.stopPolling();
             this.doPoll(true);
             this.pollInterval = setInterval(() => this.doPoll(false), 3000);
@@ -316,7 +468,6 @@ document.addEventListener('alpine:init', () => {
                 this.messages = data.messages;
                 this.partnerTyping = data.partner_typing;
                 this.onlineStatus = Object.assign({}, this.onlineStatus, data.online_status);
-                // Update unread counts (active conversation is now 0)
                 const counts = Object.assign({}, data.unread_counts);
                 counts[this.selectedUserId] = 0;
                 this.unreadCounts = counts;
@@ -335,7 +486,6 @@ document.addEventListener('alpine:init', () => {
                 const data = await res.json();
                 this.onlineStatus = Object.assign({}, this.onlineStatus, data.online_status);
                 const newCounts = data.unread_counts;
-                // Detect new messages for toast (only when not in that conversation)
                 Object.entries(newCounts).forEach(([senderId, count]) => {
                     const id = parseInt(senderId);
                     const prev = this.unreadCounts[id] || 0;
@@ -347,7 +497,6 @@ document.addEventListener('alpine:init', () => {
                 if (!this.selectedUserId) {
                     this.unreadCounts = newCounts;
                 } else {
-                    // keep active conversation as 0
                     const merged = Object.assign({}, newCounts);
                     merged[this.selectedUserId] = 0;
                     this.unreadCounts = merged;
@@ -357,19 +506,30 @@ document.addEventListener('alpine:init', () => {
 
         async sendMessage() {
             const text = this.newMessage.trim();
-            if (!text || !this.selectedUserId || this.sending) return;
+            const file = this.$refs.attachmentInput.files[0];
+            
+            if (!text && !file || !this.selectedUserId || this.sending) return;
+            
+            const formData = new FormData();
+            formData.append('receiver_id', this.selectedUserId);
+            if (text) formData.append('message', text);
+            if (file) formData.append('attachment', file);
+
             this.newMessage = '';
+            this.$refs.attachmentInput.value = '';
+            this.selectedFilePreview = null;
             this.sending = true;
+            
             this.$nextTick(() => { if (this.$refs.messageInput) this.$refs.messageInput.style.height = 'auto'; });
+            
             try {
                 const res = await fetch('/chat/send', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ receiver_id: this.selectedUserId, message: text })
+                    body: formData
                 });
                 if (res.ok) {
                     const msg = await res.json();

@@ -159,23 +159,48 @@ class MessageController extends Controller
     }
 
     /**
-     * Kirim pesan baru.
+     * Kirim pesan baru (dengan dukungan lampiran).
      */
     public function sendMessage(Request $request)
     {
         $validated = $request->validate([
             'receiver_id' => 'required|integer|exists:users,id',
-            'message'     => 'required|string|max:1000',
+            'message'     => 'nullable|string|max:1000',
+            'attachment'  => 'nullable|file|max:20480', // 20MB max
         ]);
+
+        if (!$request->filled('message') && !$request->hasFile('attachment')) {
+            return response()->json(['message' => 'Pesan atau lampiran harus diisi.'], 422);
+        }
 
         if ((int) $validated['receiver_id'] === Auth::id()) {
             return response()->json(['message' => 'Tidak bisa mengirim pesan ke diri sendiri.'], 422);
         }
 
+        $attachmentPath = null;
+        $attachmentType = null;
+
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $mime = $file->getMimeType();
+            
+            if (str_contains($mime, 'image')) {
+                $attachmentType = 'image';
+            } elseif (str_contains($mime, 'video')) {
+                $attachmentType = 'video';
+            } else {
+                $attachmentType = 'file';
+            }
+
+            $attachmentPath = $file->store('chat_attachments', 'public');
+        }
+
         $message = Message::create([
-            'sender_id'   => Auth::id(),
-            'receiver_id' => $validated['receiver_id'],
-            'message'     => $validated['message'],
+            'sender_id'       => Auth::id(),
+            'receiver_id'     => $validated['receiver_id'],
+            'message'         => $validated['message'] ?? '',
+            'attachment_path' => $attachmentPath,
+            'attachment_type' => $attachmentType,
         ]);
 
         return response()->json($message, 201);
