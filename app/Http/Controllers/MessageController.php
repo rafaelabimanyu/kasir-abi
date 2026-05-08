@@ -16,9 +16,9 @@ class MessageController extends Controller
     public function index()
     {
         $users = User::where('id', '!=', (int) Auth::id(), 'and')
-            ->select('id', 'name', 'email', 'role', 'last_activity_at')
-            ->orderBy('name')
-            ->get();
+            ->select(['id', 'name', 'email', 'role', 'last_activity_at'])
+            ->orderBy('name', 'asc')
+            ->get(['*']);
 
         return view('pages.chat', compact('users'));
     }
@@ -34,15 +34,17 @@ class MessageController extends Controller
         $currentUserId = Auth::id();
 
         $messages = Message::where(function ($q) use ($currentUserId, $user_id) {
-                $q->where('sender_id', '=', (int) $currentUserId, 'and')->where('receiver_id', '=', (int) $user_id, 'and');
+                $q->where('sender_id', '=', (int) $currentUserId, 'and')
+                  ->where('receiver_id', '=', (int) $user_id, 'and');
             })
             ->orWhere(function ($q) use ($currentUserId, $user_id) {
-                $q->where('sender_id', '=', (int) $user_id, 'and')->where('receiver_id', '=', (int) $currentUserId, 'and');
+                $q->where('sender_id', '=', (int) $user_id, 'and')
+                  ->where('receiver_id', '=', (int) $currentUserId, 'and');
             })
-            ->latest()
+            ->latest('created_at')
             ->limit(50)
-            ->get()
-            ->sortBy('created_at')
+            ->get(['*'])
+            ->sortBy('created_at', SORT_REGULAR, false)
             ->values();
 
         // Mark messages from partner as read
@@ -51,7 +53,7 @@ class MessageController extends Controller
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
-        return response()->json($messages);
+        return response()->json($messages, 200, [], 0);
     }
 
     /**
@@ -68,15 +70,17 @@ class MessageController extends Controller
 
         // Messages
         $messages = Message::where(function ($q) use ($currentUserId, $userId) {
-                $q->where('sender_id', '=', (int) $currentUserId, 'and')->where('receiver_id', '=', (int) $userId, 'and');
+                $q->where('sender_id', '=', (int) $currentUserId, 'and')
+                  ->where('receiver_id', '=', (int) $userId, 'and');
             })
             ->orWhere(function ($q) use ($currentUserId, $userId) {
-                $q->where('sender_id', '=', (int) $userId, 'and')->where('receiver_id', '=', (int) $currentUserId, 'and');
+                $q->where('sender_id', '=', (int) $userId, 'and')
+                  ->where('receiver_id', '=', (int) $currentUserId, 'and');
             })
-            ->latest()
+            ->latest('created_at')
             ->limit(50)
-            ->get()
-            ->sortBy('created_at')
+            ->get(['*'])
+            ->sortBy('created_at', SORT_REGULAR, false)
             ->values();
 
         // Mark as read
@@ -97,8 +101,8 @@ class MessageController extends Controller
 
         // Online statuses for all users
         $onlineStatus = User::where('id', '!=', (int) $currentUserId, 'and')
-            ->select('id', 'last_activity_at')
-            ->get()
+            ->select(['id', 'last_activity_at'])
+            ->get(['*'])
             ->mapWithKeys(fn ($u) => [
                 $u->id => $u->last_activity_at && $u->last_activity_at->gt($twoMinutesAgo)
             ]);
@@ -108,7 +112,7 @@ class MessageController extends Controller
             'partner_typing' => $partnerTyping,
             'unread_counts'  => $unreadCounts,
             'online_status'  => $onlineStatus,
-        ]);
+        ], 200, [], 0);
     }
 
     /**
@@ -121,8 +125,8 @@ class MessageController extends Controller
         $twoMinutesAgo = now()->subMinutes(2);
 
         $onlineStatus = User::where('id', '!=', (int) $currentUserId, 'and')
-            ->select('id', 'last_activity_at')
-            ->get()
+            ->select(['id', 'last_activity_at'])
+            ->get(['*'])
             ->mapWithKeys(fn ($u) => [
                 $u->id => $u->last_activity_at && $u->last_activity_at->gt($twoMinutesAgo)
             ]);
@@ -137,7 +141,7 @@ class MessageController extends Controller
             'online_status' => $onlineStatus,
             'unread_counts' => $unreadCounts,
             'total_unread'  => $unreadCounts->sum(),
-        ]);
+        ], 200, [], 0);
     }
 
     /**
@@ -155,7 +159,7 @@ class MessageController extends Controller
             now()->addSeconds(4)
         );
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true], 200, [], 0);
     }
 
     /**
@@ -170,11 +174,11 @@ class MessageController extends Controller
         ]);
 
         if (!$request->filled('message') && !$request->hasFile('attachment')) {
-            return response()->json(['message' => 'Pesan atau lampiran harus diisi.'], 422);
+            return response()->json(['message' => 'Pesan atau lampiran harus diisi.'], 422, [], 0);
         }
 
         if ((int) $validated['receiver_id'] === Auth::id()) {
-            return response()->json(['message' => 'Tidak bisa mengirim pesan ke diri sendiri.'], 422);
+            return response()->json(['message' => 'Tidak bisa mengirim pesan ke diri sendiri.'], 422, [], 0);
         }
 
         $attachmentPath = null;
@@ -205,6 +209,6 @@ class MessageController extends Controller
             'attachment_type' => $attachmentType,
         ]);
 
-        return response()->json($message, 201);
+        return response()->json($message, 201, [], 0);
     }
 }
