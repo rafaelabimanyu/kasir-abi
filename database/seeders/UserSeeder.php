@@ -11,15 +11,15 @@ class UserSeeder extends Seeder
     {
         User::create([
             'name'     => 'Admin',
-            'email'    => 'admin@kasirabi.com',
-            'password' => 'password',
+             'email'    => 'admin@kasirabi.com',
+            'password' => \Illuminate\Support\Facades\Hash::make('password'),
             'role'     => 'admin',
         ]);
 
         User::create([
             'name'     => 'Kasir 01',
             'email'    => 'kasir@kasirabi.com',
-            'password' => 'password',
+            'password' => \Illuminate\Support\Facades\Hash::make('password'),
             'role'     => 'kasir',
         ]);
     }
