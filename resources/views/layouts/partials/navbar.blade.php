@@ -48,6 +48,14 @@
 
         {{-- Right: Actions --}}
         <div class="flex items-center gap-2">
+            {{-- Real-time Clock --}}
+            <div x-data="realTimeClock()" class="hidden xl:flex items-center gap-3 px-4 py-2 bg-dark-700/50 border border-dark-600/50 rounded-xl mr-2 shadow-sm">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-500/10 text-brand-400 border border-brand-500/20 shadow-glow-sm">
+                    <i data-lucide="clock" class="w-4 h-4"></i>
+                </div>
+                <span class="text-[13px] font-semibold text-slate-200 font-jakarta tracking-wide whitespace-nowrap" x-text="currentTime"></span>
+            </div>
+
             {{-- Quick Chat --}}
             <div x-data="navChatBadge()" class="relative">
                 <a href="{{ route('chat') }}" class="flex items-center justify-center w-10 h-10 rounded-xl text-slate-400 hover:text-brand-400 hover:bg-dark-600 transition-colors" title="Pesan Internal">

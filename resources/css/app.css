@@ -8,6 +8,7 @@
 @theme {
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-jakarta: 'Plus Jakarta Sans', sans-serif;
 
     /* Custom colors */
     --color-dark-900: #0f0f14;
