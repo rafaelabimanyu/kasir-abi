@@ -66,7 +66,16 @@
         </a>
         @endif
 
-        {{-- Settings --}}
+        {{-- Help & Guide --}}
+        <p class="px-3 mt-6 mb-2 text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Bantuan</p>
+        
+        <a href="{{ route('panduan') }}"
+           class="sidebar-link group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 hover:bg-surface-hover {{ request()->routeIs('panduan') ? 'active' : '' }}">
+            <i data-lucide="book-open" class="sidebar-icon w-5 h-5 text-slate-400 group-hover:text-brand-400 transition-colors"></i>
+            <span class="sidebar-text text-slate-300 group-hover:text-white transition-colors">Buku Panduan</span>
+        </a>
+
+        {{-- Systems --}}
         <p class="px-3 mt-6 mb-2 text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Sistem</p>
 
         <div x-data="navChatBadge()" class="relative">
@@ -80,6 +89,7 @@
             </a>
         </div>
 
+        @if(auth()->user()->isAdmin())
         <a href="{{ route('users.index') }}"
            class="sidebar-link group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 hover:bg-surface-hover {{ request()->routeIs('users.*') ? 'active' : '' }}">
             <i data-lucide="users" class="sidebar-icon w-5 h-5 text-slate-400 group-hover:text-brand-400 transition-colors"></i>

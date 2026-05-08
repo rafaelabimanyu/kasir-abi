@@ -52,6 +52,11 @@ Route::middleware('auth')->group(function () {
     // Shortcuts
     Route::view('/shortcuts', 'pages.shortcuts')->name('shortcuts');
 
+    // Buku Panduan
+    Route::get('/panduan', function() {
+        return view('pages.panduan');
+    })->name('panduan');
+
     // ── Admin Only ──────────────────────────────────────────────────
     Route::middleware('role:admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');

@@ -117,6 +117,7 @@ document.addEventListener('alpine:init', () => {
         pollInterval: null,
         bgInterval: null,
         typingTimeout: null,
+        pickerInitialized: false,
 
         init() {
             this.filteredUsers = this.allUsers;
@@ -140,55 +141,53 @@ document.addEventListener('alpine:init', () => {
         },
 
         initEmojiPicker() {
-            const trigger = document.querySelector('#emoji-picker-button');
-            const container = document.querySelector('#emoji-picker-container');
-            
-            if (trigger && container) {
-                try {
-                    const picker = picmo.createPicker({
-                        theme: 'dark',
-                        showSearch: false,
-                        showVariants: false,
-                        showPreview: false
-                    });
-                    
-                    container.appendChild(picker.domElement);
-                    
-                    picker.addEventListener('emoji:select', event => {
-                        this.newMessage += event.emoji;
-                        this.$nextTick(() => {
-                            this.autoResize(this.$refs.messageInput);
-                            this.$refs.messageInput.focus();
+            this.$nextTick(() => {
+                const trigger = document.querySelector('#emoji-picker-button');
+                const container = document.querySelector('#emoji-picker-container');
+                
+                if (trigger && container && !this.pickerInitialized) {
+                    try {
+                        const picker = picmo.createPicker({
+                            theme: 'dark',
+                            showSearch: false,
+                            showVariants: false,
+                            showPreview: false,
+                            width: '280px',
+                            height: '320px'
                         });
-                    });
-                    
-                    trigger.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        container.style.display = container.style.display === 'none' ? 'block' : 'none';
-                        if (container.style.display === 'block') {
+                        
+                        container.appendChild(picker.domElement);
+                        this.pickerInitialized = true;
+                        
+                        picker.addEventListener('emoji:select', event => {
+                            this.newMessage += event.emoji;
                             this.$nextTick(() => {
-                                // Ensure picker is visible within window
-                                const rect = container.getBoundingClientRect();
-                                if (rect.top < 0) {
-                                    container.style.bottom = 'auto';
-                                    container.style.top = '100%';
-                                    container.style.marginTop = '8px';
+                                if (this.$refs.messageInput) {
+                                    this.autoResize(this.$refs.messageInput);
+                                    this.$refs.messageInput.focus();
                                 }
                             });
-                        }
-                    });
-                    
-                    document.addEventListener('click', (e) => {
-                        if (!container.contains(e.target) && !trigger.contains(e.target)) {
-                            container.style.display = 'none';
-                        }
-                    });
-                    
-                    console.log('[Chat] Emoji Picker Initialized');
-                } catch(e) {
-                    console.error('[Chat] Failed to init Picmo:', e);
+                        });
+                        
+                        trigger.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const isHidden = container.style.display === 'none';
+                            container.style.display = isHidden ? 'block' : 'none';
+                        });
+                        
+                        document.addEventListener('click', (e) => {
+                            if (!container.contains(e.target) && !trigger.contains(e.target)) {
+                                container.style.display = 'none';
+                            }
+                        });
+                        
+                        console.log('[Chat] Emoji Picker Ready');
+                    } catch(e) {
+                        console.error('[Chat] Failed to init Picmo:', e);
+                    }
                 }
-            }
+            });
         },
 
         handleFileSelect(e) {
@@ -233,6 +232,9 @@ document.addEventListener('alpine:init', () => {
             this.partnerTyping = false;
             this.selectedFilePreview = null;
             this.stopPolling();
+            
+            // Re-init picker when user is selected to ensure element visibility
+            this.initEmojiPicker();
             
             // Initial fetch
             this.doPoll(true).then(() => {
@@ -309,13 +311,14 @@ document.addEventListener('alpine:init', () => {
             
             const formData = new FormData();
             formData.append('receiver_id', this.selectedUserId);
-            formData.append('message', text);
-            if (attachment) {
-                formData.append('attachment', attachment);
-            }
+            if (text) formData.append('message', text);
+            if (attachment) formData.append('attachment', attachment);
             
-            // UI Feedback: Clear input early but keep values in local vars
-            const originalMessage = this.newMessage;
+            // Simpan state lama untuk rollback jika gagal
+            const oldMessage = this.newMessage;
+            const oldFilePreview = this.selectedFilePreview;
+
+            // Clear input segera (Optimistic UI)
             this.newMessage = '';
             this.selectedFilePreview = null;
             this.$refs.attachmentInput.value = '';
@@ -332,19 +335,30 @@ document.addEventListener('alpine:init', () => {
                     body: formData
                 });
 
+                const data = await res.json();
+
                 if (res.ok) {
-                    const msg = await res.json();
-                    this.messages.push(msg);
+                    this.messages.push(data);
                     this.scrollToBottom();
-                    this.$nextTick(() => lucide.createIcons());
+                    this.$nextTick(() => {
+                        lucide.createIcons();
+                        // Reset scroll height again to be sure
+                        if (this.$refs.messageInput) this.$refs.messageInput.style.height = 'auto';
+                    });
                 } else {
-                    const err = await res.json();
-                    this.newMessage = originalMessage; // Restore if failed
-                    window.dispatchEvent(new CustomEvent('notify', { detail: { message: err.message || 'Gagal mengirim pesan.', type: 'error' } }));
+                    // Rollback
+                    this.newMessage = oldMessage;
+                    this.selectedFilePreview = oldFilePreview;
+                    window.dispatchEvent(new CustomEvent('notify', { 
+                        detail: { message: data.message || 'Gagal mengirim pesan.', type: 'error' } 
+                    }));
                 }
             } catch(e) {
-                this.newMessage = originalMessage;
-                window.dispatchEvent(new CustomEvent('notify', { detail: { message: 'Kesalahan jaringan.', type: 'error' } }));
+                this.newMessage = oldMessage;
+                this.selectedFilePreview = oldFilePreview;
+                window.dispatchEvent(new CustomEvent('notify', { 
+                    detail: { message: 'Kesalahan jaringan atau server.', type: 'error' } 
+                }));
             } finally {
                 this.sending = false;
                 this.$nextTick(() => { if (this.$refs.messageInput) this.$refs.messageInput.focus(); });

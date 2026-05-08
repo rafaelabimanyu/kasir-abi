@@ -34,7 +34,7 @@
                 <button id="emoji-picker-button" type="button" class="w-10 h-10 flex items-center justify-center rounded-xl bg-dark-700 border border-dark-600 text-slate-400 hover:text-white hover:bg-dark-600 transition-all" title="Emoji">
                     <i data-lucide="smile" class="w-5 h-5"></i>
                 </button>
-                <div id="emoji-picker-container" class="absolute bottom-full left-0 mb-2 z-[1000]" style="display:none;"></div>
+                <div id="emoji-picker-container" class="absolute bottom-[calc(100%+8px)] left-0 z-[9999] shadow-2xl" style="display:none;"></div>
             </div>
         </div>
 
