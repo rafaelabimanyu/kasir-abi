@@ -134,13 +134,16 @@
         <div class="store-name">{{ \App\Models\Setting::get('store_name', 'Kasir Abi') }}</div>
         <div class="store-address">{{ \App\Models\Setting::get('store_address', 'Jl. Contoh Alamat No. 123') }}</div>
         <div class="store-contact">{{ \App\Models\Setting::get('store_phone', '081234567890') }}</div>
+        <div style="font-size: 10px; margin-top: 5px; text-transform: capitalize;">
+            {{ \Carbon\Carbon::parse($transaction->created_at)->locale('id')->isoFormat('dddd, D MMMM Y - HH:mm') }}
+        </div>
     </div>
 
     <div class="divider"></div>
 
     <div class="meta-info">
         <span>No: TRX-{{ str_pad($transaction->id, 4, '0', STR_PAD_LEFT) }}</span>
-        <span>{{ \Carbon\Carbon::parse($transaction->tanggal)->format('d/m/Y H:i') }}</span>
+        <span>Metode: {{ ucfirst($transaction->payment_method) }}</span>
     </div>
     <div class="meta-info">
         <span>Kasir: {{ $transaction->user->name ?? 'System' }}</span>
