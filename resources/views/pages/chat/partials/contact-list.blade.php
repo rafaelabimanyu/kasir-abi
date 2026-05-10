@@ -1,5 +1,5 @@
 {{-- SIDEBAR KONTAK --}}
-<div class="flex flex-col border-r border-dark-600/50 bg-dark-700/40 shrink-0" style="width:280px;min-width:220px;">
+<div class="flex flex-col h-full bg-dark-700/40">
     <div class="p-3 border-b border-dark-600/50 space-y-2">
         <div class="flex items-center justify-between">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Kontak</h2>

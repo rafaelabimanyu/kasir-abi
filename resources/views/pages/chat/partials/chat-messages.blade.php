@@ -21,7 +21,8 @@
                         <span class="text-[11px] text-slate-600 px-3 py-1 bg-dark-700 rounded-full border border-dark-600/50" x-text="formatDate(msg.created_at)"></span>
                         <div class="flex-1 h-px bg-dark-600/40"></div>
                     </div>
-                </template                {{-- Bubble kiri (lawan) --}}
+                </template>
+                {{-- Bubble kiri (lawan) --}}
                 <template x-if="msg.sender_id !== {{ auth()->id() }}">
                     <div class="flex items-end gap-2 mb-1 justify-start group">
                         <template x-if="shouldShowAvatar(index)">

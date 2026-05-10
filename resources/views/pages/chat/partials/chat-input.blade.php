@@ -1,5 +1,5 @@
 {{-- FORM INPUT CHAT --}}
-<div x-show="selectedUserId" style="display:none;" class="p-3 bg-dark-800 border-t border-dark-600/50 shrink-0">
+<div x-show="selectedUserId" style="display:none;" class="p-3 bg-dark-800 border-t border-dark-600/50 flex-shrink-0">
     {{-- Preview File Terpilih --}}
     <template x-if="selectedFilePreview">
         <div class="mb-3 p-2.5 bg-dark-700 border border-brand-500/30 rounded-2xl flex items-center gap-3 animate-fade-in">
