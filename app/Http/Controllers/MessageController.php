@@ -15,7 +15,7 @@ class MessageController extends Controller
      */
     public function index()
     {
-        $users = User::where('id', '!=', Auth::id())
+        $users = User::query()->where('id', '!=', Auth::id(), 'and')
             ->select(['id', 'name', 'email', 'role', 'last_activity_at'])
             ->orderBy('name', 'asc')
             ->get(['*']);
@@ -33,7 +33,7 @@ class MessageController extends Controller
 
         $currentUserId = Auth::id();
 
-        $messages = Message::where(function ($q) use ($currentUserId, $user_id) {
+        $messages = Message::query()->where(function ($q) use ($currentUserId, $user_id) {
                 $q->where('sender_id', $currentUserId)
                   ->where('receiver_id', $user_id);
             })
@@ -52,8 +52,8 @@ class MessageController extends Controller
             ->values();
 
         // Mark messages from partner as read
-        Message::where('sender_id', $user_id)
-            ->where('receiver_id', $currentUserId)
+        Message::query()->where('sender_id', '=', $user_id, 'and')
+            ->where('receiver_id', '=', $currentUserId, 'and')
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
@@ -73,7 +73,7 @@ class MessageController extends Controller
         $twoMinutesAgo = now()->subMinutes(2);
 
         // Messages
-        $messages = Message::where(function ($q) use ($currentUserId, $userId) {
+        $messages = Message::query()->where(function ($q) use ($currentUserId, $userId) {
                 $q->where('sender_id', $currentUserId)
                   ->where('receiver_id', $userId);
             })
@@ -92,8 +92,8 @@ class MessageController extends Controller
             ->values();
 
         // Mark as read
-        Message::where('sender_id', $userId)
-            ->where('receiver_id', $currentUserId)
+        Message::query()->where('sender_id', '=', $userId, 'and')
+            ->where('receiver_id', '=', $currentUserId, 'and')
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
@@ -101,14 +101,18 @@ class MessageController extends Controller
         $partnerTyping = (bool) Cache::get("typing_{$userId}_to_{$currentUserId}");
 
         // Unread counts per sender (for sidebar badges)
-        $unreadCounts = Message::where('receiver_id', $currentUserId)
+        $unreadCounts = Message::query()->where('receiver_id', '=', $currentUserId, 'and')
+            ->where(function ($q) use ($currentUserId) {
+                $q->whereNull('deleted_by')
+                  ->orWhereJsonDoesntContain('deleted_by', $currentUserId);
+            })
             ->whereNull('read_at')
             ->groupBy('sender_id')
             ->selectRaw('sender_id, COUNT(*) as count')
             ->pluck('count', 'sender_id');
 
         // Online statuses for all users
-        $onlineStatus = User::where('id', '!=', $currentUserId)
+        $onlineStatus = User::query()->where('id', '!=', $currentUserId, 'and')
             ->select(['id', 'last_activity_at'])
             ->get()
             ->mapWithKeys(fn ($u) => [
@@ -132,14 +136,18 @@ class MessageController extends Controller
         $currentUserId = Auth::id();
         $twoMinutesAgo = now()->subMinutes(2);
 
-        $onlineStatus = User::where('id', '!=', $currentUserId)
+        $onlineStatus = User::query()->where('id', '!=', $currentUserId, 'and')
             ->select(['id', 'last_activity_at'])
             ->get()
             ->mapWithKeys(fn ($u) => [
                 $u->id => $u->last_activity_at && $u->last_activity_at->gt($twoMinutesAgo)
             ]);
 
-        $unreadCounts = Message::where('receiver_id', $currentUserId)
+        $unreadCounts = Message::query()->where('receiver_id', '=', $currentUserId, 'and')
+            ->where(function ($q) use ($currentUserId) {
+                $q->whereNull('deleted_by')
+                  ->orWhereJsonDoesntContain('deleted_by', $currentUserId);
+            })
             ->whereNull('read_at')
             ->groupBy('sender_id')
             ->selectRaw('sender_id, COUNT(*) as count')
